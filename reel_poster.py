@@ -72,12 +72,32 @@ def get_next_video():
             return os.path.join(VIDEO_FOLDER, file), file
     return None, None
 
+SESSION_FILE = "session.json"
+
 def login_to_instagram():
     cl = Client()
-    print(f"Logging in as {USERNAME}...")
+    
+    # 1. Try to load an existing session
+    if os.path.exists(SESSION_FILE):
+        print(f"Loading session for {USERNAME} from {SESSION_FILE}...")
+        try:
+            cl.load_settings(SESSION_FILE)
+            # Verify if session is still valid
+            cl.get_timeline_feed() 
+            print("Session loaded successfully!")
+            return cl
+        except Exception:
+            print("Session expired or invalid. Performing full login...")
+            if os.path.exists(SESSION_FILE):
+                os.remove(SESSION_FILE)
+
+    # 2. Perform full login if no session or session expired
+    print(f"Performing full login for {USERNAME}...")
     try:
         cl.login(USERNAME, PASSWORD)
-        print("Login Successful!")
+        # Save session for future use
+        cl.dump_settings(SESSION_FILE)
+        print("Login Successful! Session saved.")
         return cl
     except Exception as e:
         print(f"Login Failed: {e}")

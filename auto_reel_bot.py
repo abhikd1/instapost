@@ -56,10 +56,11 @@ def get_next_video():
         print(f"Error: Folder {VIDEO_FOLDER} does not exist.")
         return None, None
 
+    # ALWAYS reload history from file to get latest data
     posted_files = []
     if os.path.exists('history.log'):
         with open('history.log', 'r', encoding='utf-8') as f:
-            posted_files = f.read().splitlines()
+            posted_files = [line.strip() for line in f.readlines() if line.strip()]
 
     files = [f for f in os.listdir(VIDEO_FOLDER) if f.endswith('.mp4')]
     for file in files:
@@ -68,12 +69,32 @@ def get_next_video():
             return os.path.join(VIDEO_FOLDER, file), file
     return None, None
 
+SESSION_FILE = "session.json"
+
 def login_to_instagram():
     cl = Client()
-    print(f"Logging in as {USERNAME}...")
+    
+    # 1. Try to load an existing session
+    if os.path.exists(SESSION_FILE):
+        print(f"Loading session for {USERNAME} from {SESSION_FILE}...")
+        try:
+            cl.load_settings(SESSION_FILE)
+            # Verify if session is still valid
+            cl.get_timeline_feed() 
+            print("Session loaded successfully!")
+            return cl
+        except Exception:
+            print("Session expired or invalid. Performing full login...")
+            if os.path.exists(SESSION_FILE):
+                os.remove(SESSION_FILE)
+
+    # 2. Perform full login if no session or session expired
+    print(f"Performing full login for {USERNAME}...")
     try:
         cl.login(USERNAME, PASSWORD)
-        print("Login Successful!")
+        # Save session for future use
+        cl.dump_settings(SESSION_FILE)
+        print("Login Successful! Session saved.")
         return cl
     except Exception as e:
         print(f"Login Failed: {e}")
@@ -120,28 +141,24 @@ def post_single_reel():
         
         clip = VideoFileClip(video_path)
         duration = clip.duration
+        upload_path = video_path
+        is_temp = False
         
-        # Trim if longer than 90s
+        # Only trim if longer than 90s (skip formatting for speed)
         if duration > 90:
             print(f"Trimming from {duration:.1f}s to 90s...")
-            clip = clip.subclip(0, 90)
+            trimmed_clip = clip.subclip(0, 90)
+            upload_path = os.path.join(os.path.dirname(video_path), "temp_reel.mp4")
+            trimmed_clip.write_videofile(
+                upload_path, 
+                codec="libx264", 
+                audio_codec="aac",
+                verbose=False, 
+                logger=None
+            )
+            trimmed_clip.close()
+            is_temp = True
         
-        # Format to 9:16
-        print("Formatting to 9:16 aspect ratio...")
-        clip = format_video_for_reel(clip)
-        
-        # Save processed video
-        upload_path = os.path.join(os.path.dirname(video_path), "temp_reel.mp4")
-        print("Saving processed video...")
-        clip.write_videofile(
-            upload_path, 
-            codec="libx264", 
-            audio_codec="aac", 
-            temp_audiofile='temp-audio.m4a', 
-            remove_temp=True,
-            verbose=False, 
-            logger=None
-        )
         clip.close()
 
         print(f"Uploading as Reel... (Duration: {min(duration, 90):.1f}s)")
@@ -197,8 +214,8 @@ def run_bot():
         else:
             print("\nNo videos to post or upload failed.")
         
-        # Calculate random wait time (60-80 minutes)
-        wait_minutes = random.randint(60, 80)
+        # Calculate random wait time (10-40 minutes - balanced posting)
+        wait_minutes = random.randint(10, 40)
         wait_seconds = wait_minutes * 60
         
         next_post_time = datetime.now()

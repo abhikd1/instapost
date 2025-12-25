@@ -1,5 +1,6 @@
 # Ignore sensitive files
 config.json
+session.json
 *.log
 
 # Ignore temporary files
