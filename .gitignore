@@ -1,0 +1,29 @@
+# Ignore sensitive files
+config.json
+*.log
+
+# Ignore temporary files
+temp_reel.mp4
+temp-audio.m4a
+*.jpg
+
+# Ignore Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Ignore video files (too large for Git)
+*.mp4
+*.avi
+*.mov
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
