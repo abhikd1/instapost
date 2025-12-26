@@ -19,8 +19,10 @@ class FBClicker:
     async def human_delay(self, min_sec=1, max_sec=3):
         await asyncio.sleep(random.uniform(min_sec, max_sec))
 
-    async def click_buttons(self, page, only_confirm=False, only_add=False):
-        print("\n🔍 Scanning for buttons...")
+    async def click_buttons(self, page, only_confirm=False, only_add=False, limit=0):
+        print(f"\n🔍 Scanning for {'CONFIRM' if only_confirm else 'ADD FRIEND' if only_add else 'buttons'}...")
+        
+        round_clicks = 0
         
         # 1. Look for CONFIRM buttons
         if not only_add:
@@ -34,7 +36,9 @@ class FBClicker:
                         print("   🎯 Found CONFIRM button! Clicking...")
                         await btn.click()
                         self.confirm_count += 1
+                        round_clicks += 1
                         await self.human_delay(2, 4)
+                        if limit > 0 and round_clicks >= limit: return round_clicks
                 except: continue
 
         # 2. Look for ADD FRIEND
@@ -50,12 +54,16 @@ class FBClicker:
                         print("   👤 Found ADD FRIEND button! Clicking...")
                         await btn.click()
                         self.count += 1
+                        round_clicks += 1
                         await self.human_delay(2, 4)
+                        if limit > 0 and round_clicks >= limit: return round_clicks
                 except: continue
+        
+        return round_clicks
 
     async def run(self):
         print("\n" + "="*60)
-        print("FACEBOOK STABLE CLICKER - WITH SESSION")
+        print("FACEBOOK STABLE CLICKER - HUMAN LOOP")
         print("="*60)
         
         async with async_playwright() as p:
@@ -88,8 +96,6 @@ class FBClicker:
             if not is_logged_in:
                 print("\n1. Please LOG IN manually.")
                 print("2. Once you login, the bot will automatically SAVE your session.")
-                print("3. Navigate to your list of people.")
-                
                 # Wait for login detection
                 max_wait = 300 # 5 minutes
                 waited = 0
@@ -114,38 +120,48 @@ class FBClicker:
             print("\n🚀 BOT ACTIVE!")
             
             try:
-                # --- STAGE 1: CONFIRM REQUESTS ---
-                print("\n[STAGE 1] Navigating to Friend Requests...")
-                await page.goto("https://www.facebook.com/friends/requests")
-                await self.human_delay(3, 5)
-                
-                print("   🔍 Confirming requests...")
-                for _ in range(5): # Process 5 rounds of confirms
-                    if page.is_closed(): break
+                loop_count = 0
+                while True:
+                    loop_count += 1
+                    print(f"\n{'='*20} LOOP {loop_count} {'='*20}")
+
+                    # --- STAGE 1: CONFIRM ALL REQUESTS ---
+                    print(f"\n[STAGE 1] Navigating to Friend Requests...")
+                    await page.goto("https://www.facebook.com/friends/requests")
+                    await self.human_delay(3, 5)
+                    
+                    print("   🔍 Confirming all visible requests...")
                     await self.click_buttons(page, only_confirm=True)
                     print(f"   📊 Current: {self.confirm_count} Confirmed")
-                    await page.evaluate("window.scrollBy(0, 500)")
-                    await self.human_delay(2, 4)
 
-                # --- STAGE 2: ADD FRIENDS (SUGGESTIONS) ---
-                print("\n[STAGE 2] Navigating to Friend Suggestions...")
-                await page.goto("https://www.facebook.com/friends/suggestions")
-                await self.human_delay(3, 5)
+                    # --- STAGE 2: ADD EXACTLY 4 FRIENDS (SUGGESTIONS) ---
+                    print("\n[STAGE 2] Navigating to Friend Suggestions...")
+                    await page.goto("https://www.facebook.com/friends/suggestions")
+                    await self.human_delay(3, 5)
 
-                print("   🔍 Adding friends...")
-                while True: # Continuous loop for suggestions
-                    if page.is_closed(): break
+                    print("   🔍 Adding exactly 4 friends...")
+                    await self.click_buttons(page, only_add=True, limit=4)
+                    print(f"   📊 Progress: {self.count} Added, {self.confirm_count} Confirmed")
+
+                    # --- STAGE 3: HUMAN BREAK (HOME FEED SCROLL) ---
+                    print("\n[STAGE 3] Human Behavior Simulation (Home Feed)...")
+                    await page.goto("https://www.facebook.com/")
+                    await self.human_delay(3, 5)
+
+                    break_time_mins = random.uniform(1, 2)
+                    print(f"   🌀 Scrolling home feed for {break_time_mins:.1f} minutes...")
                     
-                    try:
-                        await self.click_buttons(page, only_add=True)
-                        print(f"   📊 Progress: {self.count} Added, {self.confirm_count} Confirmed")
-                        
-                        # Scroll down
-                        await page.evaluate("window.scrollBy(0, 400)")
-                        await self.human_delay(3, 5)
-                    except Exception as e:
-                        print(f"   Error in loop: {e}")
-                        await asyncio.sleep(5)
+                    end_time = asyncio.get_event_loop().time() + (break_time_mins * 60)
+                    while asyncio.get_event_loop().time() < end_time:
+                        if page.is_closed(): break
+                        # Random scroll amount
+                        scroll_amount = random.randint(300, 700)
+                        await page.evaluate(f"window.scrollBy(0, {scroll_amount})")
+                        # Random pause between scrolls
+                        await self.human_delay(5, 12)
+                    
+                    print(f"\n✅ Loop {loop_count} complete. Restarting cycle...")
+
             except KeyboardInterrupt:
                 print("\nStopped.")
             
