@@ -1,35 +1,56 @@
-# Facebook Friend Bot - Assist Mode Guide
+# 🤖 Facebook Friend Bot - Version 3 (Human-Like Loop)
 
-This bot helps you quickly add friends from a Facebook post's reaction list.
+This bot is a highly stable, human-like automation tool for managing Facebook friend requests and growing your network safely.
 
-## 🚀 Quick Start
+## ✨ Key Features
 
-1.  **Stop any running bots/browsers.**
-2.  **Open Terminal** in `fb_friend_bot` folder.
-3.  **Run the command:**
-    ```bash
-    python run_bot_manual.py
+1.  **Stage-Based Human Loop**:
+    -   **Stage 1: Auto-Confirm** - Automatically navigates to your friend requests and confirms everyone.
+    -   **Stage 2: Auto-Add** - Navigates to suggestions and adds exactly **4 friends** (to stay under the radar).
+    -   **Stage 3: Home Scroll** - Mimics real browsing by scrolling the home feed for 1-2 minutes.
+2.  **🛡️ Interruption Guard**:
+    -   Automatically declines incoming calls.
+    -   Closes chat popups and "Not now" dialogs.
+    -   Ensures the bot never gets stuck on blocking layers.
+3.  **Smart Session Management**:
+    -   Saves your login state to `fb_session.json` so you don't have to log in every time.
+4.  **Stealth Mode**: 
+    -   Uses randomized human delays (3-12 seconds) between every action.
+
+---
+
+## 🚀 How to Use
+
+### 1. Requirements
+- Python 3.10+
+- Playwright (`pip install playwright`)
+- Browser installed (`playwright install chromium`)
+
+### 2. Setup
+1.  Make sure you have your credentials in `fb_config.json`:
+    ```json
+    {
+      "email": "your_email@example.com",
+      "password": "your_password"
+    }
     ```
-4.  **Bot Actions:**
-    -   It will open the Facebook post configured in `fb_config.json`.
-    -   It will check if you are logged in (if not, log in manually).
-    -   **YOU MUST**: Click the **Reactions Count** (the number next to Like/Love) to open the list of people.
-    -   **YOU MUST**: Start **scrolling down** the list.
-    -   **THE BOT WILL**: Automatically click "Add Friend" on anyone appearing in the list as you scroll.
 
-## ⚙️ Configuration (`fb_config.json`)
+### 3. Running the Bot
+1.  Open your terminal in the `fb_friend_bot` folder.
+2.  Run:
+    ```bash
+    python stable_clicker.py
+    ```
+3.  **First Run**: If it's your first time, the bot will ask you to log in manually. Once you log in, it will save the session and handle everything automatically from then on.
 
-To change the target post, edit `fb_config.json`:
-```json
-{
-    "target_post_url": "https://www.facebook.com/share/p/YOUR_LINK_HERE/",
-    "daily_request_limit": 100,
-    ...
-}
-```
+---
 
-## ⚠️ Important Notes
+## ⚙️ Configuration Hints
+- The bot is tuned to click **4 people** per loop in Stage 2. This is the safest way to avoid "Action Blocked" warnings.
+- It will repeat the cycle (Confirm -> Add -> Scroll) indefinitely until you stop it (`Ctrl+C`).
 
--   **Manual Intervention**: You must open the list and scroll. The bot handles the clicking.
--   **Safety**: The bot waits 2-4 seconds between clicks to avoid blocks.
--   **Scanning**: You will see "Scanning..." in the terminal. This is normal. Just keep scrolling.
+---
+
+## ⚠️ Safety Warnings
+- **Don't overdo it**: We recommend running this for a few hours a day rather than 24/7.
+- **Account Age**: If your account is very new (less than 1 week), keep the limits even lower.

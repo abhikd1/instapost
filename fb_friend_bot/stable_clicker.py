@@ -19,7 +19,45 @@ class FBClicker:
     async def human_delay(self, min_sec=1, max_sec=3):
         await asyncio.sleep(random.uniform(min_sec, max_sec))
 
+    async def clear_interruptions(self, page):
+        """Dismisses calls, chat windows, and popups that block the screen."""
+        try:
+            # 1. Close Chat Windows (The little boxes at the bottom)
+            chat_closes = await page.query_selector_all('[aria-label="Close chat"]')
+            for btn in chat_closes:
+                if await btn.is_visible():
+                    await btn.click()
+                    print("   💬 Closed a chat popupBox.")
+            
+            # 2. Decline/End Incoming Calls (The big overlays)
+            # Facebook calls usually have "Decline" or "End call" buttons
+            call_btns = await page.query_selector_all('[aria-label="Decline"]')
+            call_btns += await page.query_selector_all('[aria-label="End call"]')
+            call_btns += await page.query_selector_all('[aria-label="Close"]') # Sometimes it's just a general close
+            
+            for btn in call_btns:
+                try:
+                    # Specific check to see if it's inside a call-related layer
+                    if await btn.is_visible():
+                        await btn.click()
+                        print("   ⛔ Dismissed an interruption/call.")
+                except: continue
+
+            # 3. General Popups (Not now, Dismiss, etc.)
+            dismiss_text = ["Not now", "Dismiss", "Maybe later", "Close"]
+            for text in dismiss_text:
+                btns = await page.query_selector_all(f'text="{text}"')
+                for btn in btns:
+                    if await btn.is_visible():
+                        await btn.click()
+                        print(f"   🔔 Dismissed popup: {text}")
+        except:
+            pass
+
     async def click_buttons(self, page, only_confirm=False, only_add=False, limit=0):
+        # Auto-clear any blocking popups first
+        await self.clear_interruptions(page)
+        
         print(f"\n🔍 Scanning for {'CONFIRM' if only_confirm else 'ADD FRIEND' if only_add else 'buttons'}...")
         
         round_clicks = 0
@@ -39,6 +77,8 @@ class FBClicker:
                         round_clicks += 1
                         await self.human_delay(2, 4)
                         if limit > 0 and round_clicks >= limit: return round_clicks
+                        # Check for popups again after a click
+                        await self.clear_interruptions(page)
                 except: continue
 
         # 2. Look for ADD FRIEND
@@ -57,6 +97,8 @@ class FBClicker:
                         round_clicks += 1
                         await self.human_delay(2, 4)
                         if limit > 0 and round_clicks >= limit: return round_clicks
+                        # Check for popups again after a click
+                        await self.clear_interruptions(page)
                 except: continue
         
         return round_clicks
@@ -78,7 +120,12 @@ class FBClicker:
                 context = await browser.new_context(viewport=None)
                 
             page = await context.new_page()
-            await page.goto("https://www.facebook.com")
+            try:
+                await page.goto("https://www.facebook.com", wait_until="load", timeout=60000)
+            except Exception as e:
+                print(f"   ⚠️  Initial navigation error: {e}. Retrying...")
+                await asyncio.sleep(5)
+                await page.goto("https://www.facebook.com", wait_until="load", timeout=60000)
             
             # Check login status
             print("\n[1] Checking login status...")
@@ -127,38 +174,47 @@ class FBClicker:
 
                     # --- STAGE 1: CONFIRM ALL REQUESTS ---
                     print(f"\n[STAGE 1] Navigating to Friend Requests...")
-                    await page.goto("https://www.facebook.com/friends/requests")
-                    await self.human_delay(3, 5)
-                    
-                    print("   🔍 Confirming all visible requests...")
-                    await self.click_buttons(page, only_confirm=True)
-                    print(f"   📊 Current: {self.confirm_count} Confirmed")
+                    try:
+                        await page.goto("https://www.facebook.com/friends/requests", wait_until="load", timeout=45000)
+                        await asyncio.sleep(5)
+                        
+                        print("   🔍 Confirming all visible requests...")
+                        await self.click_buttons(page, only_confirm=True)
+                        print(f"   📊 Current: {self.confirm_count} Confirmed")
+                    except Exception as e:
+                        print(f"   ⚠️  Stage 1 Error (continuing): {e}")
 
                     # --- STAGE 2: ADD EXACTLY 4 FRIENDS (SUGGESTIONS) ---
                     print("\n[STAGE 2] Navigating to Friend Suggestions...")
-                    await page.goto("https://www.facebook.com/friends/suggestions")
-                    await self.human_delay(3, 5)
+                    try:
+                        await page.goto("https://www.facebook.com/friends/suggestions", wait_until="load", timeout=45000)
+                        await asyncio.sleep(5)
 
-                    print("   🔍 Adding exactly 4 friends...")
-                    await self.click_buttons(page, only_add=True, limit=4)
-                    print(f"   📊 Progress: {self.count} Added, {self.confirm_count} Confirmed")
+                        print("   🔍 Adding exactly 4 friends...")
+                        await self.click_buttons(page, only_add=True, limit=4)
+                        print(f"   📊 Progress: {self.count} Added, {self.confirm_count} Confirmed")
+                    except Exception as e:
+                        print(f"   ⚠️  Stage 2 Error (continuing): {e}")
 
                     # --- STAGE 3: HUMAN BREAK (HOME FEED SCROLL) ---
                     print("\n[STAGE 3] Human Behavior Simulation (Home Feed)...")
-                    await page.goto("https://www.facebook.com/")
-                    await self.human_delay(3, 5)
+                    try:
+                        await page.goto("https://www.facebook.com/", wait_until="load", timeout=45000)
+                        await asyncio.sleep(5)
 
-                    break_time_mins = random.uniform(1, 2)
-                    print(f"   🌀 Scrolling home feed for {break_time_mins:.1f} minutes...")
-                    
-                    end_time = asyncio.get_event_loop().time() + (break_time_mins * 60)
-                    while asyncio.get_event_loop().time() < end_time:
-                        if page.is_closed(): break
-                        # Random scroll amount
-                        scroll_amount = random.randint(300, 700)
-                        await page.evaluate(f"window.scrollBy(0, {scroll_amount})")
-                        # Random pause between scrolls
-                        await self.human_delay(5, 12)
+                        break_time_mins = random.uniform(1, 2)
+                        print(f"   🌀 Scrolling home feed for {break_time_mins:.1f} minutes...")
+                        
+                        end_time = asyncio.get_event_loop().time() + (break_time_mins * 60)
+                        while asyncio.get_event_loop().time() < end_time:
+                            if page.is_closed(): break
+                            # Random scroll amount
+                            scroll_amount = random.randint(300, 700)
+                            await page.evaluate(f"window.scrollBy(0, {scroll_amount})")
+                            # Random pause between scrolls
+                            await self.human_delay(5, 12)
+                    except Exception as e:
+                        print(f"   ⚠️  Stage 3 Error (continuing): {e}")
                     
                     print(f"\n✅ Loop {loop_count} complete. Restarting cycle...")
 
